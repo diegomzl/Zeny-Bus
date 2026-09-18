@@ -857,7 +857,8 @@
     // O cliente já entra com o "Total compra" (seu próprio zeny), comprado de uma vez.
     // A venda pode ser dividida em várias partes (uma por dia, com preço diferente cada uma —
     // por exemplo quando o jogo limita quantos itens dá pra revender por dia).
-    // O que é vendido a ele é só o ganho da manipulação: (receita bruta - total compra), menos a taxa do exchange
+    // A taxa do exchange do jogo é descontada em cima da venda bruta (o que o exchange paga
+    // pelo item), não em cima do lucro. Depois disso é que se desconta o total compra.
     // (padrão 15%, mas editável por venda — costuma variar entre 9% e 15%).
     var amount=n(e.amount), sp=n(e.startPrice), perM=n(e.pricePerMillionUsd), rate=n(e.usdBrlRate);
     var totalStarting=amount*sp;
@@ -866,7 +867,7 @@
     sales.forEach(function(s){ rawIncome += n(s.qty)*n(s.price); soldQty += n(s.qty); });
     var income=rawIncome-totalStarting;
     var taxRatePct=(e.taxRate==null || e.taxRate==='')?DEFAULT_TAX_RATE_PCT:n(e.taxRate);
-    var taxExchange=income*(taxRatePct/100);
+    var taxExchange=rawIncome*(taxRatePct/100);
     var netProfit=income-taxExchange;
     var priceUSD=(netProfit/1000000)*perM;
     var priceBRL=priceUSD*rate;
