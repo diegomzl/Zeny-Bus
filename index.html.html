@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#07070c">
+<title>Zeny Bus — Controle de Flips</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --bg:#07070c;
+    --bg2:#0d0d16;
+    --panel:#111119;
+    --surface: rgba(255,255,255,.04);
+    --surface2: rgba(255,255,255,.075);
+    --border: rgba(255,255,255,.09);
+    --border-strong: rgba(255,255,255,.18);
+    --text:#f2f2f6;
+    --text-dim:#a3a3b8;
+    --text-mute:#6f6f85;
+    --violet:#8b5cf6;
+    --cyan:#22d3ee;
+    --pink:#f472b6;
+    --green:#34d399;
+    --red:#fb7185;
+    --amber:#fbbf24;
+    --radius:20px;
+    --radius-sm:12px;
+    --shadow: 0 10px 40px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    min-height:100vh;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+    color-scheme:dark;
+  }
+  .blobs{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
+  .blob{position:absolute;border-radius:50%;filter:blur(110px);opacity:.30;mix-blend-mode:screen;animation:float 24s ease-in-out infinite alternate;}
+  .blob-a{width:520px;height:520px;top:-160px;left:-120px;background:radial-gradient(circle,var(--violet),transparent 70%);}
+  .blob-b{width:480px;height:480px;bottom:-160px;right:-100px;background:radial-gradient(circle,var(--cyan),transparent 70%);animation-delay:-8s;}
+  .blob-c{width:380px;height:380px;top:38%;left:48%;background:radial-gradient(circle,var(--pink),transparent 70%);animation-delay:-14s;opacity:.16;}
+  @keyframes float{0%{transform:translate(0,0) scale(1);}100%{transform:translate(40px,-30px) scale(1.08);}}
+
+  .topbar{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:22px 40px;}
+  .brand{display:flex;align-items:center;gap:12px;cursor:pointer;user-select:none;}
+  .brand-title{font-weight:800;font-size:20px;letter-spacing:.2px;background:linear-gradient(90deg,#fff,#c7c7e0);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .brand-sub{font-size:12px;color:var(--text-mute);margin-top:1px;}
+  .header-actions{display:flex;gap:10px;align-items:center;}
+  .lang-toggle{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:3px;gap:2px;}
+  .lang-btn{font-family:inherit;font-size:11.5px;font-weight:700;letter-spacing:.3px;color:var(--text-mute);background:transparent;border:none;border-radius:7px;padding:7px 10px;cursor:pointer;transition:all .15s ease;}
+  .lang-btn:hover{color:var(--text-dim);}
+  .lang-btn.active{background:linear-gradient(135deg,var(--violet),var(--cyan));color:#0a0a12;}
+
+  .auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative;z-index:2;padding:20px;}
+  .auth-card{background:var(--panel);border:1px solid var(--border-strong);border-radius:var(--radius);padding:36px 32px;width:380px;max-width:100%;box-shadow:var(--shadow);animation:pop .25s ease;}
+  .auth-card h1{font-size:20px;font-weight:800;margin:0 0 6px;}
+  .auth-card .auth-sub{font-size:13px;color:var(--text-mute);margin-bottom:24px;}
+  .auth-card .field{margin-bottom:14px;}
+  .auth-error{background:rgba(251,113,133,.1);border:1px solid rgba(251,113,133,.3);color:var(--red);font-size:13px;padding:10px 12px;border-radius:10px;margin-bottom:14px;}
+  .auth-card .btn-primary{width:100%;justify-content:center;margin-top:6px;padding:12px;}
+  .cloud-status{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-mute);}
+  .cloud-status .dot{width:7px;height:7px;border-radius:50%;background:var(--text-mute);}
+  .cloud-status.syncing .dot{background:var(--amber);animation:pulse 1s ease infinite;}
+  .cloud-status.synced .dot{background:var(--green);}
+  .cloud-status.error .dot{background:var(--red);}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+  .admin-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:linear-gradient(135deg,rgba(139,92,246,.14),rgba(34,211,238,.09));border:1px solid rgba(139,92,246,.35);border-radius:14px;padding:12px 18px;margin-bottom:20px;font-size:13.5px;}
+  .user-list{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow:auto;}
+  .user-row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;}
+  .user-row .u-name{font-weight:700;font-size:13.5px;}
+  .user-row .u-email{font-size:12px;color:var(--text-mute);}
+  .user-row .u-badge{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;background:rgba(139,92,246,.15);color:var(--violet);margin-left:6px;}
+  .user-row .u-actions{display:flex;gap:6px;flex-shrink:0;}
+
+  .btn{font-family:inherit;font-size:14px;font-weight:600;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 16px;cursor:pointer;transition:all .18s ease;display:inline-flex;align-items:center;gap:8px;}
+  .btn:hover{background:var(--surface2);border-color:var(--border-strong);transform:translateY(-1px);}
+  .btn-primary{background:linear-gradient(135deg,var(--violet),var(--cyan));border:none;color:#0a0a12;font-weight:700;}
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-danger{color:var(--red);border-color:rgba(251,113,133,.3);}
+  .btn-danger:hover{background:rgba(251,113,133,.1);}
+  .btn-ghost{background:transparent;}
+  .btn-icon{padding:8px;border-radius:10px;}
+  .btn-sm{padding:6px 10px;font-size:13px;}
+
+  main#app{position:relative;z-index:1;max-width:1400px;margin:0 auto;padding:10px 40px 80px;animation:fadeIn .5s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+
+  .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:32px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:18px 20px;backdrop-filter:blur(20px);}
+  .stat-label{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-mute);font-weight:600;}
+  .stat-value{font-size:24px;font-weight:800;margin-top:6px;font-variant-numeric:tabular-nums;}
+  .stat-value.green{color:var(--green);}
+  .stat-value.amber{color:var(--amber);}
+  .stat-sub{font-size:12px;color:var(--text-mute);margin-top:4px;font-family:'JetBrains Mono',ui-monospace,monospace;}
+  .usd-inline{color:var(--text-mute);font-weight:600;font-size:.9em;}
+  .zeny-unit{color:var(--text-mute);font-weight:600;font-size:.72em;margin-left:4px;text-transform:uppercase;letter-spacing:.3px;}
+
+  .section-title{font-size:15px;font-weight:700;color:var(--text-dim);margin:0 0 16px;text-transform:uppercase;letter-spacing:.6px;}
+
+  .hidden{display:none !important;}
+  .rate-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:14px;backdrop-filter:blur(20px);}
+  .rate-bar .rate-label{font-size:13.5px;color:var(--text-dim);}
+  .rate-bar .rate-label strong{color:var(--text);font-family:'JetBrains Mono',ui-monospace,monospace;}
+  .search-bar{position:relative;margin-bottom:28px;max-width:480px;}
+  .search-bar input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 18px 14px 44px;color:var(--text);font-family:inherit;font-size:15px;transition:all .2s;backdrop-filter:blur(20px);}
+  .search-bar input:focus{outline:none;border-color:var(--violet);background:rgba(139,92,246,.06);box-shadow:0 0 0 4px rgba(139,92,246,.1);}
+  .search-bar input::placeholder{color:var(--text-mute);}
+  .search-bar .search-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--text-mute);pointer-events:none;font-size:15px;}
+
+  .client-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:16px;backdrop-filter:blur(20px);animation:fadeIn .3s ease backwards;}
+  .client-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+  .client-name{font-size:19px;font-weight:800;}
+  .client-pending{font-size:14px;font-weight:700;}
+  .client-pending.amber{color:var(--amber);}
+  .client-pending.muted{color:var(--text-mute);font-weight:600;}
+  .search-total-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:linear-gradient(135deg,rgba(139,92,246,.12),rgba(34,211,238,.08));border:1px solid rgba(139,92,246,.3);border-radius:14px;padding:14px 20px;margin-bottom:16px;font-size:13.5px;color:var(--text-dim);}
+  .search-total-bar .search-total-val{font-size:17px;font-weight:800;color:var(--text);font-family:'JetBrains Mono',ui-monospace,monospace;}
+  .client-items{display:flex;flex-direction:column;gap:6px;}
+  .client-item-row{display:grid;grid-template-columns:1fr 120px 120px auto;align-items:center;gap:10px;padding:11px 14px;border-radius:10px;background:rgba(255,255,255,.02);cursor:pointer;transition:background .15s;font-size:13.5px;}
+  .client-item-row:hover{background:rgba(255,255,255,.06);}
+  .ci-item{font-weight:600;}
+  .ci-net,.ci-brl{font-family:'JetBrains Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;color:var(--text-dim);text-align:right;}
+  .ci-brl{color:var(--text);font-weight:700;display:flex;flex-direction:column;gap:2px;}
+  .ci-usd{font-size:11px;color:var(--text-mute);font-weight:600;}
+  .ci-net.pos,.ci-brl.pos{color:var(--green);}
+  .ci-net.neg,.ci-brl.neg{color:var(--red);}
+  .ci-badges{display:flex;gap:6px;flex-wrap:wrap;}
+  .ci-badges .pill-select{pointer-events:none;padding:4px 9px;font-size:11px;}
+  @media (max-width:720px){
+    .client-item-row{grid-template-columns:1fr;gap:4px;}
+    .ci-net,.ci-brl{text-align:left;}
+  }
+
+  .items-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:20px;}
+  .item-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;cursor:pointer;transition:all .25s ease;backdrop-filter:blur(20px);overflow:hidden;animation:fadeIn .4s ease backwards;}
+  .item-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(139,92,246,.10),transparent 60%);opacity:0;transition:opacity .25s;}
+  .item-card:hover{transform:translateY(-4px);border-color:rgba(139,92,246,.4);box-shadow:0 16px 40px rgba(139,92,246,.15);}
+  .item-card:hover::before{opacity:1;}
+  .item-card .item-name{font-size:18px;font-weight:700;margin-bottom:14px;position:relative;}
+  .item-meta{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--text-dim);position:relative;}
+  .item-meta .net{color:var(--green);font-weight:700;}
+  .item-pending-badge{position:absolute;top:20px;right:20px;background:rgba(251,191,36,.15);color:var(--amber);font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;}
+  .item-card.new{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;border-style:dashed;color:var(--text-mute);min-height:120px;}
+  .item-card.new:hover{color:var(--violet);border-color:var(--violet);box-shadow:none;}
+  .item-card.new .plus{font-size:28px;}
+
+  .breadcrumb{display:flex;align-items:center;gap:14px;margin-bottom:20px;}
+  .item-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+  .item-header h1{font-size:26px;margin:0;font-weight:800;}
+  .item-header-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+  .toolbar{display:flex;align-items:center;justify-content:space-between;margin:24px 0 16px;flex-wrap:wrap;gap:12px;}
+
+  .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:auto;backdrop-filter:blur(20px);}
+  table{border-collapse:collapse;width:100%;min-width:980px;}
+  thead th{position:sticky;top:0;background:var(--bg2);color:var(--text-mute);font-size:11px;text-transform:uppercase;letter-spacing:.5px;text-align:left;padding:14px 12px;border-bottom:1px solid var(--border);z-index:1;font-weight:700;}
+  tbody td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  tbody tr:hover td{background:rgba(255,255,255,.02);}
+  tbody tr.details-row:hover td{background:none;}
+  tbody tr:last-child td{border-bottom:none;}
+
+  .cell-input{width:100%;background:transparent;border:1px solid transparent;border-radius:8px;color:var(--text);padding:7px 8px;font-family:inherit;font-size:13.5px;transition:all .15s;}
+  .cell-input:hover{background:rgba(255,255,255,.03);}
+  .cell-input:focus{outline:none;border-color:var(--violet);background:rgba(139,92,246,.08);}
+  input[type=number].cell-input{appearance:textfield;-moz-appearance:textfield;}
+  input[type=number].cell-input::-webkit-outer-spin-button,input[type=number].cell-input::-webkit-inner-spin-button{appearance:none;margin:0;}
+  input[type=date].cell-input{font-size:12.5px;}
+  .col-amount{max-width:80px;}
+  .col-price{max-width:150px;}
+  .cell-input.zero-warn{border-color:rgba(251,191,36,.55);background:rgba(251,191,36,.08);}
+  .cell-input.zero-warn:hover{background:rgba(251,191,36,.12);}
+  .col-date{flex:1;min-width:0;}
+  .col-customer{min-width:150px;}
+  .dates-wrap{display:flex;gap:4px;}
+
+  .computed{font-variant-numeric:tabular-nums;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;color:var(--text-dim);white-space:nowrap;}
+  .computed.big{font-size:14.5px;font-weight:700;color:var(--text);}
+  .computed.pos{color:var(--green);}
+  .computed.neg{color:var(--red);}
+  .computed.sold-complete{color:var(--green);}
+  .computed.sold-partial{color:var(--amber);}
+  .dual-currency{display:flex;flex-direction:column;gap:2px;}
+  .dc-brl{font-size:14.5px;font-weight:700;color:var(--text);}
+  .dc-brl.pos{color:var(--green);}
+  .dc-brl.neg{color:var(--red);}
+  .dc-usd{font-size:11.5px;font-weight:600;color:var(--text-mute);}
+
+  .sales-empty{font-size:12.5px;color:var(--text-mute);font-style:italic;padding:8px 2px;}
+  .sales-head{display:grid;grid-template-columns:130px 90px 120px 110px 30px;gap:8px;font-size:10.5px;color:var(--text-mute);text-transform:uppercase;letter-spacing:.4px;padding:0 4px 4px;}
+  .sales-row{display:grid;grid-template-columns:130px 90px 120px 110px 30px;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;margin-bottom:6px;}
+  .sales-row input{width:100%;background:transparent;border:1px solid transparent;border-radius:6px;padding:6px 8px;color:var(--text);font-family:inherit;font-size:13px;}
+  .sales-row input:hover{background:rgba(255,255,255,.04);}
+  .sales-row input:focus{outline:none;border-color:var(--violet);background:rgba(139,92,246,.08);}
+  .sales-row .computed{font-size:12.5px;text-align:right;padding-right:6px;}
+  @media (max-width:560px){
+    .sales-head{display:none;}
+    .sales-row{grid-template-columns:1fr 1fr;}
+  }
+
+  .pill-select{border:1px solid transparent;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;}
+  .pill-select.status-in_progress{background-color:rgba(56,189,248,.14);color:#38bdf8;}
+  .pill-select.status-done{background-color:rgba(52,211,153,.14);color:var(--green);}
+  .pill-select.pay-pending{background-color:rgba(251,191,36,.14);color:var(--amber);}
+  .pill-select.pay-paid{background-color:rgba(52,211,153,.14);color:var(--green);}
+
+  .row-actions{display:flex;gap:6px;align-items:center;white-space:nowrap;}
+  .icon-btn{background:transparent;border:none;color:var(--text-mute);cursor:pointer;padding:6px;border-radius:8px;font-size:14px;transition:all .15s;line-height:1;}
+  .icon-btn:hover{background:var(--surface2);color:var(--text);}
+  .icon-btn.danger:hover{color:var(--red);background:rgba(251,113,133,.1);}
+  .icon-btn.rotate{transition:transform .2s;display:inline-block;}
+  .icon-btn.rotate.open{transform:rotate(180deg);}
+  .detail-toggle{display:inline-flex;align-items:center;gap:5px;background:rgba(139,92,246,.14);border:1px solid rgba(139,92,246,.4);color:var(--violet);font-family:inherit;font-size:12.5px;font-weight:700;padding:6px 11px;border-radius:9px;cursor:pointer;transition:all .15s;white-space:nowrap;}
+  .detail-toggle:hover{background:rgba(139,92,246,.26);border-color:var(--violet);color:#fff;}
+  .detail-toggle .chev{display:inline-block;font-size:11px;transition:transform .2s;line-height:1;}
+  .detail-toggle.open .chev{transform:rotate(180deg);}
+
+  .details-row td{background:var(--bg2);padding:0;border-bottom:1px solid var(--border);}
+  .details-panel{padding:18px 20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px 20px;animation:fadeIn .25s ease;}
+  .details-panel.hidden{display:none;}
+  .detail-field label{display:block;font-size:11px;color:var(--text-mute);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;font-weight:600;}
+  .detail-field .computed{font-size:14px;}
+  .detail-field input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-family:inherit;font-size:13.5px;}
+  .detail-field input:focus{outline:none;border-color:var(--violet);}
+  .detail-field .with-btn{display:flex;gap:6px;}
+  .detail-field .with-btn input{flex:1;}
+
+  .empty-state{text-align:center;padding:60px 20px;color:var(--text-mute);}
+  .empty-state .big-icon{font-size:40px;margin-bottom:12px;opacity:.6;}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(4,4,8,.65);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:50;animation:fadeIn .2s ease;padding:20px;}
+  .modal-card{background:var(--panel);border:1px solid var(--border-strong);border-radius:var(--radius);padding:28px;width:440px;max-width:100%;box-shadow:var(--shadow);animation:pop .22s ease;max-height:86vh;overflow:auto;}
+  @keyframes pop{from{opacity:0;transform:scale(.96) translateY(8px);}to{opacity:1;transform:scale(1) translateY(0);}}
+  .modal-card h2{margin:0 0 18px;font-size:18px;font-weight:800;}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:12.5px;color:var(--text-dim);margin-bottom:6px;font-weight:600;}
+  .field input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:14px;}
+  .field input:focus{outline:none;border-color:var(--violet);}
+  .field .hint{font-size:11.5px;color:var(--text-mute);margin-top:5px;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;}
+  .modal-divider{height:1px;background:var(--border);margin:22px 0;}
+  .danger-zone{border:1px solid rgba(251,113,133,.25);border-radius:12px;padding:14px;background:rgba(251,113,133,.04);}
+  .danger-zone p{font-size:12.5px;color:var(--text-dim);margin:0 0 10px;}
+
+  #toastRoot{position:fixed;bottom:24px;right:24px;z-index:80;display:flex;flex-direction:column;gap:8px;}
+  .toast{background:var(--panel);border:1px solid var(--border-strong);color:var(--text);padding:12px 18px;border-radius:12px;font-size:13.5px;box-shadow:var(--shadow);animation:toastIn .25s ease;}
+  @keyframes toastIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+  .toast.fadeout{animation:toastOut .3s ease forwards;}
+  @keyframes toastOut{to{opacity:0;transform:translateY(6px);}}
+
+  @media (max-width:640px){
+    .topbar{padding:18px 20px;}
+    main#app{padding:10px 16px 60px;}
+    .brand-sub{display:none;}
+  }
+</style>
+</head>
+<body>
+  <div class="blobs" aria-hidden="true">
+    <div class="blob blob-a"></div>
+    <div class="blob blob-b"></div>
+    <div class="blob blob-c"></div>
+  </div>
+
+  <header class="topbar">
+    <div class="brand" id="brandHome">
+      <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
+        <defs>
+          <linearGradient id="lg" x1="0" y1="34" x2="34" y2="0">
+            <stop offset="0" stop-color="#8b5cf6"/>
+            <stop offset="1" stop-color="#22d3ee"/>
+          </linearGradient>
+        </defs>
+        <path d="M4 24L12 15L18 20L30 6" stroke="url(#lg)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="30" cy="6" r="3" fill="#22d3ee"/>
+      </svg>
+      <div>
+        <div class="brand-title">Zeny Bus</div>
+        <div class="brand-sub" id="brandSubText">controle de flips &amp; clientes</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="lang-toggle">
+        <button class="lang-btn" id="langBtnPt" data-lang="pt" title="Português (Brasil)">PT-BR</button>
+        <button class="lang-btn" id="langBtnEn" data-lang="en" title="English (US)">US-EN</button>
+      </div>
+      <div id="authedHeaderActions" class="header-actions hidden" style="gap:10px;">
+        <span class="cloud-status" id="cloudStatus"><span class="dot"></span><span id="cloudStatusText">—</span></span>
+        <button class="btn btn-ghost" id="btnUsers" style="display:none;">👥 Usuários</button>
+        <button class="btn btn-ghost" id="btnSettings">⚙️ Configurações</button>
+        <button class="btn btn-ghost" id="btnLogout">🚪 Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="authScreen"></div>
+  <main id="app" class="hidden"></main>
+
+  <div id="modalRoot"></div>
+  <div id="toastRoot"></div>
+
+<script>
+(function(){
+  "use strict";
+  var STORAGE_KEY='flipledger_v1';
+  var LANG_KEY='zenybus_lang';
+  var DEFAULT_TAX_RATE_PCT=15; // taxa padrão do exchange (%), editável por venda — costuma variar entre 9% e 15%
+  function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+  // ============================================================
+  // CONFIGURAÇÃO DA NUVEM — troque pelos valores do SEU projeto Supabase
+  // (Configurações do projeto → API → Project URL / anon public key).
+  // Sem isso preenchido, o app mostra um aviso e não funciona.
+  // ============================================================
+  var SUPABASE_URL='https://kbcfbqetndodxcwetcxk.supabase.co';
+  var SUPABASE_ANON_KEY='sb_publishable_o-kL99hjm5SybgmDwgvZzg_62VYk9Yx';
+
+  var sb=null;
+  var cloudReady = SUPABASE_URL.indexOf('COLE_AQUI')===-1 && SUPABASE_ANON_KEY.indexOf('COLE_AQUI')===-1;
+  if(cloudReady && window.supabase){
+    sb=window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
+  // Sessão / identidade atual
+  var session=null;        // sessão do Supabase Auth (quem logou)
+  var myProfile=null;      // linha da tabela profiles do login atual
+  var allProfiles=[];      // (só admin) lista de todos os logins, pro painel de usuários
+  var targetUserId=null;   // de quem são os dados carregados agora (normalmente = o próprio login)
+  function isReadOnly(){ return !!(session && targetUserId && targetUserId!==session.user.id); }
+
+  var I18N={
+    pt:{
+      brandSub:'controle de flips & clientes',
+      btnSettings:'⚙️ Configurações',
+      rateLabel:'Cotação USD → BRL:',
+      updateAllRatesBtn:'🔄 Atualizar cotação em tudo que está pendente',
+      updateAllRatesTitle:'Busca a cotação de hoje e aplica em todas as cobranças pendentes',
+      searchPlaceholder:'Buscar cliente pelo nome...',
+      sectionItems:'Itens',
+      newItem:'Novo item',
+      statReceived:'Recebido',
+      statToReceive:'A receber',
+      statActiveItems:'Itens ativos',
+      statActiveDeals:'Negociações em andamento',
+      noClientFoundPrefix:'Nenhum cliente encontrado para "',
+      searchTotalPrefix:'Total a receber nesta busca (',
+      searchTotalSuffix:' clientes)',
+      clientPendingPrefix:'A receber: ',
+      noPending:'Sem pendências',
+      statusDone:'Concluído',
+      statusInProgress:'Em andamento',
+      paymentPaid:'Pago',
+      paymentPending:'Pendente',
+      itemRemoved:'(item removido)',
+      backToDashboard:'← Painel',
+      renameBtn:'✏️ Renomear',
+      csvBtn:'⬇ CSV',
+      deleteItemBtn:'🗑 Excluir item',
+      statClients:'Clientes',
+      statNetTotal:'Lucro líquido total',
+      addClientBtn:'+ Adicionar cliente',
+      emptyClientsLine1:'Nenhum cliente ainda neste item.',
+      emptyClientsLine2:'Clique em "Adicionar cliente" para começar.',
+      thClient:'Cliente', thQty:'Nº de itens', thBuyPrice:'Preço compra', thBuyDate:'Data compra',
+      thSold:'Vendido', thNetProfit:'Lucro líquido', thValue:'Valor (R$ / US$)', thStatus:'Status', thPayment:'Pagamento',
+      placeholderClientName:'Nome do cliente',
+      zeroWarnTitle:'Preencha a quantidade — sem ela o lucro fica zerado',
+      titleDetails:'Detalhes', titleDelete:'Excluir',
+      detailTotalBuy:'Total compra',
+      detailSalesLabel:'Vendas (uma por dia, se precisar dividir)',
+      detailGrossRevenue:'Receita bruta',
+      detailInGameProfit:'Lucro em jogo',
+      detailTaxRate:'Taxa exchange (%)',
+      detailTaxValue:'Valor da taxa',
+      detailPerMillion:'US$ por milhão',
+      detailUsdValue:'Valor em USD',
+      detailRate:'Cotação USD→BRL',
+      detailNotes:'Notas',
+      placeholderOptional:'opcional',
+      salesHeadDate:'Data', salesHeadQty:'Qtd', salesHeadPrice:'Preço', salesHeadSubtotal:'Subtotal',
+      placeholderQty:'qtd', placeholderPrice:'preço',
+      salesEmpty:'Nenhuma venda registrada ainda — dá pra lançar uma por dia, com preço diferente.',
+      addSaleBtn:'+ Adicionar venda',
+      deleteSaleTitle:'Excluir esta venda',
+      modalDeleteClientTitle:'Excluir cliente?',
+      modalDeleteClientTextPrefix:'Isso removerá "',
+      modalDeleteClientTextSuffix:'" permanentemente. Essa ação não pode ser desfeita.',
+      noName:'sem nome',
+      cancel:'Cancelar', delete:'Excluir',
+      modalDeleteItemTitle:'Excluir item?',
+      modalDeleteItemTextPrefix:'Isso removerá "',
+      modalDeleteItemTextMid:'" e ',
+      modalDeleteItemTextSuffix:' cliente(s) associado(s). Essa ação não pode ser desfeita.',
+      modalRenameTitle:'Renomear item',
+      labelItemName:'Nome do item',
+      save:'Salvar',
+      modalNewItemTitle:'Novo item',
+      create:'Criar',
+      placeholderExampleItem:'Ex: Archer SK',
+      modalSettingsTitle:'Configurações',
+      labelExchangeFee:'Taxa do exchange',
+      hintExchangeFee:'Padrão de 15%, mas editável por venda (9% a 15%) na tela de cada cliente.',
+      labelDefaultRate:'Cotação USD → BRL padrão',
+      hintDefaultRate:'Busca a cotação do dia via API pública (precisa de internet). Você também pode digitar manualmente.',
+      labelDefaultPerMillion:'US$ por milhão padrão',
+      hintDefaultPerMillion:'Valor sugerido ao criar um novo cliente — dá pra ajustar por cliente depois.',
+      labelBackup:'Backup',
+      exportBackupBtn:'⬇ Exportar backup',
+      importBackupBtn:'⬆ Importar backup',
+      hintBackup:'Os dados ficam salvos só neste navegador. Exporte um backup de vez em quando para não perder nada.',
+      dangerZoneText:'Apagar todos os itens e clientes. Não pode ser desfeito.',
+      clearAllBtn:'🗑 Apagar tudo',
+      modalConfirmClearTitle:'Tem certeza?',
+      modalConfirmClearText:'Isso apagará permanentemente todos os itens, clientes e configurações.',
+      toastSaveFail:'Falha ao salvar (armazenamento cheio?)',
+      toastSyncFail:'Não foi possível sincronizar com a nuvem. Suas alterações ficam nesta sessão — vamos tentar de novo em instantes.',
+      readOnlyBlocked:'Você está visualizando os dados de outra pessoa (somente leitura). Volte para o seu painel para editar.',
+      authTitle:'Zeny Bus',
+      authSub:'Entre com seu login',
+      authEmail:'Email',
+      authPassword:'Senha',
+      authSubmit:'Entrar',
+      authSubmitting:'Entrando…',
+      authWrongCreds:'Email ou senha incorretos.',
+      authNoConnection:'Não foi possível conectar. Verifique sua internet.',
+      authNotConfigured:'App ainda não configurado — falta preencher a URL e a chave do Supabase no arquivo.',
+      deactivatedTitle:'Conta desativada',
+      deactivatedText:'Seu login foi desativado pelo administrador. Fale com ele se achar que isso é um engano.',
+      signOut:'🚪 Sair',
+      usersBtn:'👥 Usuários',
+      usersModalTitle:'Usuários',
+      usersModalHint:'Para criar um login novo, use o painel do Supabase (Authentication → Users → Add user). Aqui você ativa, desativa e visualiza os dados de cada um.',
+      userViewData:'Ver dados',
+      userDeactivate:'Desativar',
+      userActivate:'Reativar',
+      userYou:'você',
+      userAdmin:'admin',
+      userInactive:'inativo',
+      adminBannerPrefix:'👁 Modo administrador — visualizando os dados de ',
+      adminBannerSuffix:' (somente leitura)',
+      backToMyPanel:'← Voltar para meu painel',
+      cloudSaving:'Salvando…',
+      cloudSaved:'Salvo',
+      cloudSyncFailShort:'Falha ao sincronizar',
+      cloudConnected:'Conectado',
+      toastAutoDone:'Todas as vendas concluídas — status alterado para "Concluído" automaticamente.',
+      toastClientRemoved:'Cliente removido.',
+      toastItemDeleted:'Item excluído.',
+      toastItemRenamed:'Item renomeado.',
+      toastSettingsSaved:'Configurações salvas.',
+      toastAllCleared:'Tudo apagado.',
+      toastRateUpdatedPrefix:'Cotação atualizada: ',
+      toastRateFail:'Não foi possível buscar a cotação agora.',
+      toastBackupExported:'Backup exportado.',
+      toastBackupImported:'Backup importado com sucesso.',
+      toastInvalidFile:'Arquivo inválido.',
+      toastCsvExported:'CSV exportado.',
+      fetchRateTitle:'Buscar cotação atual',
+      docTitle:'Zeny Bus — Controle de Flips',
+      pageLang:'pt-BR'
+    },
+    en:{
+      brandSub:'flip & client tracking',
+      btnSettings:'⚙️ Settings',
+      rateLabel:'USD → BRL rate:',
+      updateAllRatesBtn:'🔄 Update rate on everything pending',
+      updateAllRatesTitle:"Fetches today's rate and applies it to all pending charges",
+      searchPlaceholder:'Search client by name...',
+      sectionItems:'Items',
+      newItem:'New item',
+      statReceived:'Received',
+      statToReceive:'To receive',
+      statActiveItems:'Active items',
+      statActiveDeals:'Deals in progress',
+      noClientFoundPrefix:'No client found for "',
+      searchTotalPrefix:'Total to receive in this search (',
+      searchTotalSuffix:' clients)',
+      clientPendingPrefix:'To receive: ',
+      noPending:'No pending balance',
+      statusDone:'Done',
+      statusInProgress:'In progress',
+      paymentPaid:'Paid',
+      paymentPending:'Pending',
+      itemRemoved:'(item removed)',
+      backToDashboard:'← Dashboard',
+      renameBtn:'✏️ Rename',
+      csvBtn:'⬇ CSV',
+      deleteItemBtn:'🗑 Delete item',
+      statClients:'Clients',
+      statNetTotal:'Total net profit',
+      addClientBtn:'+ Add client',
+      emptyClientsLine1:'No clients yet on this item.',
+      emptyClientsLine2:'Click "Add client" to get started.',
+      thClient:'Client', thQty:'No. of items', thBuyPrice:'Buy price', thBuyDate:'Buy date',
+      thSold:'Sold', thNetProfit:'Net profit', thValue:'Value (R$ / US$)', thStatus:'Status', thPayment:'Payment',
+      placeholderClientName:'Client name',
+      zeroWarnTitle:'Fill in the quantity — without it, profit stays at zero',
+      titleDetails:'Details', titleDelete:'Delete',
+      detailTotalBuy:'Total buy',
+      detailSalesLabel:'Sales (one per day, if you need to split)',
+      detailGrossRevenue:'Gross revenue',
+      detailInGameProfit:'In-game profit',
+      detailTaxRate:'Exchange fee (%)',
+      detailTaxValue:'Fee amount',
+      detailPerMillion:'US$ per million',
+      detailUsdValue:'Value in USD',
+      detailRate:'USD→BRL rate',
+      detailNotes:'Notes',
+      placeholderOptional:'optional',
+      salesHeadDate:'Date', salesHeadQty:'Qty', salesHeadPrice:'Price', salesHeadSubtotal:'Subtotal',
+      placeholderQty:'qty', placeholderPrice:'price',
+      salesEmpty:'No sales recorded yet — you can log one per day, at a different price.',
+      addSaleBtn:'+ Add sale',
+      deleteSaleTitle:'Delete this sale',
+      modalDeleteClientTitle:'Delete client?',
+      modalDeleteClientTextPrefix:'This will permanently remove "',
+      modalDeleteClientTextSuffix:'". This action cannot be undone.',
+      noName:'no name',
+      cancel:'Cancel', delete:'Delete',
+      modalDeleteItemTitle:'Delete item?',
+      modalDeleteItemTextPrefix:'This will remove "',
+      modalDeleteItemTextMid:'" and ',
+      modalDeleteItemTextSuffix:' associated client(s). This action cannot be undone.',
+      modalRenameTitle:'Rename item',
+      labelItemName:'Item name',
+      save:'Save',
+      modalNewItemTitle:'New item',
+      create:'Create',
+      placeholderExampleItem:'E.g.: Archer SK',
+      modalSettingsTitle:'Settings',
+      labelExchangeFee:'Exchange fee',
+      hintExchangeFee:'Defaults to 15%, but editable per sale (9%–15%) on each client row.',
+      labelDefaultRate:'Default USD → BRL rate',
+      hintDefaultRate:"Fetches today's rate via a public API (needs internet). You can also type it in manually.",
+      labelDefaultPerMillion:'Default US$ per million',
+      hintDefaultPerMillion:'Suggested value when creating a new client — can be adjusted per client afterwards.',
+      labelBackup:'Backup',
+      exportBackupBtn:'⬇ Export backup',
+      importBackupBtn:'⬆ Import backup',
+      hintBackup:"Data is saved only in this browser. Export a backup now and then so you don't lose anything.",
+      dangerZoneText:'Delete all items and clients. Cannot be undone.',
+      clearAllBtn:'🗑 Delete everything',
+      modalConfirmClearTitle:'Are you sure?',
+      modalConfirmClearText:'This will permanently delete all items, clients and settings.',
+      toastSaveFail:'Failed to save (storage full?)',
+      toastSyncFail:'Could not sync with the cloud. Your changes stay in this session — we\'ll retry shortly.',
+      readOnlyBlocked:"You're viewing someone else's data (read-only). Go back to your own dashboard to edit.",
+      authTitle:'Zeny Bus',
+      authSub:'Sign in to your account',
+      authEmail:'Email',
+      authPassword:'Password',
+      authSubmit:'Sign in',
+      authSubmitting:'Signing in…',
+      authWrongCreds:'Incorrect email or password.',
+      authNoConnection:'Could not connect. Check your internet connection.',
+      authNotConfigured:'App not configured yet — the Supabase URL and key need to be filled in the file.',
+      deactivatedTitle:'Account disabled',
+      deactivatedText:'Your login has been disabled by the administrator. Talk to them if you think this is a mistake.',
+      signOut:'🚪 Sign out',
+      usersBtn:'👥 Users',
+      usersModalTitle:'Users',
+      usersModalHint:'To create a new login, use the Supabase dashboard (Authentication → Users → Add user). Here you can activate, deactivate and view each person\'s data.',
+      userViewData:'View data',
+      userDeactivate:'Deactivate',
+      userActivate:'Reactivate',
+      userYou:'you',
+      userAdmin:'admin',
+      userInactive:'inactive',
+      adminBannerPrefix:'👁 Admin mode — viewing data for ',
+      adminBannerSuffix:' (read-only)',
+      backToMyPanel:'← Back to my dashboard',
+      cloudSaving:'Saving…',
+      cloudSaved:'Saved',
+      cloudSyncFailShort:'Sync failed',
+      cloudConnected:'Connected',
+      toastAutoDone:'All sales completed — status automatically changed to "Done".',
+      toastClientRemoved:'Client removed.',
+      toastItemDeleted:'Item deleted.',
+      toastItemRenamed:'Item renamed.',
+      toastSettingsSaved:'Settings saved.',
+      toastAllCleared:'Everything deleted.',
+      toastRateUpdatedPrefix:'Rate updated: ',
+      toastRateFail:'Could not fetch the rate right now.',
+      toastBackupExported:'Backup exported.',
+      toastBackupImported:'Backup imported successfully.',
+      toastInvalidFile:'Invalid file.',
+      toastCsvExported:'CSV exported.',
+      fetchRateTitle:'Fetch current rate',
+      docTitle:'Zeny Bus — Flip Tracker',
+      pageLang:'en-US'
+    }
+  };
+  var lang=(function(){ try{ return localStorage.getItem(LANG_KEY)==='en'?'en':'pt'; }catch(e){ return 'pt'; } })();
+  function t(key){ var d=I18N[lang]||I18N.pt; return (d[key]!=null)?d[key]:(I18N.pt[key]!=null?I18N.pt[key]:key); }
+  function setLang(l){
+    if(l!==('en') && l!=='pt') return;
+    lang=l;
+    try{ localStorage.setItem(LANG_KEY,l); }catch(e){}
+    updateHeaderTexts();
+    render();
+  }
+  function updateHeaderTexts(){
+    document.documentElement.lang=t('pageLang');
+    document.title=t('docTitle');
+    var sub=document.getElementById('brandSubText'); if(sub) sub.textContent=t('brandSub');
+    var stg=document.getElementById('btnSettings'); if(stg) stg.textContent=t('btnSettings');
+    var langPt=document.getElementById('langBtnPt'); if(langPt) langPt.classList.toggle('active', lang==='pt');
+    var langEn=document.getElementById('langBtnEn'); if(langEn) langEn.classList.toggle('active', lang==='en');
+  }
+
+  function defaultState(){
+    return {settings:{usdBrlRate:5.30,defaultPerMillion:0.5},items:[],entries:[]};
+  }
+  // Normaliza entradas vindas da nuvem (garante sales[], taxRate padrão, status coerente)
+  // — mesma lógica de migração que a versão local sempre teve.
+  function migrateEntries(entries){
+    entries.forEach(function(e){
+      if(!e.sales) e.sales=[];
+      if(e.taxRate==null || e.taxRate===''){ e.taxRate=DEFAULT_TAX_RATE_PCT; }
+      var amt=Number(e.amount)||0;
+      var soldQty=(e.sales||[]).reduce(function(sum,s){ return sum+(Number(s.qty)||0); },0);
+      if(amt>0 && soldQty>=amt && e.status!=='done'){ e.status='done'; }
+    });
+    return entries;
+  }
+  var state=defaultState();
+  function uid(){ return 'id-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8); }
+
+  // ---- Conversão entre o formato do app (camelCase) e as colunas do Supabase (snake_case) ----
+  function itemToRow(it, uidTarget){ return {id:it.id, user_id:uidTarget, name:it.name, created_at:it.createdAt||Date.now()}; }
+  function rowToItem(r){ return {id:r.id, name:r.name, createdAt:r.created_at}; }
+  function entryToRow(e, uidTarget){
+    return {
+      id:e.id, user_id:uidTarget, item_id:e.itemId, customer:e.customer||'',
+      amount:n(e.amount), start_price:n(e.startPrice), start_date:e.startDate||'',
+      sales:e.sales||[], price_per_million_usd:n(e.pricePerMillionUsd), usd_brl_rate:n(e.usdBrlRate),
+      tax_rate:(e.taxRate==null?DEFAULT_TAX_RATE_PCT:n(e.taxRate)), status:e.status||'in_progress',
+      payment:e.payment||'pending', notes:e.notes||''
+    };
+  }
+  function rowToEntry(r){
+    return {
+      id:r.id, itemId:r.item_id, customer:r.customer||'', amount:r.amount, startPrice:r.start_price,
+      startDate:r.start_date, sales:r.sales||[], pricePerMillionUsd:r.price_per_million_usd,
+      usdBrlRate:r.usd_brl_rate, taxRate:r.tax_rate, status:r.status, payment:r.payment, notes:r.notes||''
+    };
+  }
+
+  // ---- Carrega os dados de um login específico (o próprio, ou — se admin — o de outra pessoa) ----
+  function loadCloudState(uidTarget){
+    return Promise.all([
+      sb.from('settings').select('*').eq('user_id',uidTarget).maybeSingle(),
+      sb.from('items').select('*').eq('user_id',uidTarget).order('created_at',{ascending:true}),
+      sb.from('entries').select('*').eq('user_id',uidTarget)
+    ]).then(function(results){
+      var settingsRes=results[0], itemsRes=results[1], entriesRes=results[2];
+      var s=settingsRes.data ? {usdBrlRate:settingsRes.data.usd_brl_rate, defaultPerMillion:settingsRes.data.default_per_million} : defaultState().settings;
+      state={
+        settings:s,
+        items:(itemsRes.data||[]).map(rowToItem),
+        entries:migrateEntries((entriesRes.data||[]).map(rowToEntry))
+      };
+      targetUserId=uidTarget;
+    });
+  }
+
+  // ---- Envia o estado atual pra nuvem (com debounce, pra não disparar uma chamada a cada tecla) ----
+  var syncTimer=null;
+  function saveState(){ scheduleCloudSync(); }
+  function scheduleCloudSync(){
+    if(isReadOnly() || !sb || !session) return;
+    setCloudStatus('syncing', t('cloudSaving'));
+    clearTimeout(syncTimer);
+    syncTimer=setTimeout(syncToCloud, 700);
+  }
+  function syncToCloud(){
+    if(!sb || !session || isReadOnly()) return;
+    var uidTarget=session.user.id;
+    var itemRows=state.items.map(function(it){ return itemToRow(it,uidTarget); });
+    var entryRows=state.entries.map(function(e){ return entryToRow(e,uidTarget); });
+    var itemIdList='('+state.items.map(function(it){ return '"'+it.id+'"'; }).join(',')+')';
+    var entryIdList='('+state.entries.map(function(e){ return '"'+e.id+'"'; }).join(',')+')';
+    var jobs=[
+      sb.from('settings').upsert({user_id:uidTarget, usd_brl_rate:n(state.settings.usdBrlRate), default_per_million:n(state.settings.defaultPerMillion)}),
+      itemRows.length ? sb.from('items').upsert(itemRows) : Promise.resolve({error:null}),
+      entryRows.length ? sb.from('entries').upsert(entryRows) : Promise.resolve({error:null}),
+      state.items.length ? sb.from('items').delete().eq('user_id',uidTarget).not('id','in',itemIdList) : sb.from('items').delete().eq('user_id',uidTarget),
+      state.entries.length ? sb.from('entries').delete().eq('user_id',uidTarget).not('id','in',entryIdList) : sb.from('entries').delete().eq('user_id',uidTarget)
+    ];
+    Promise.all(jobs).then(function(results){
+      var failed=results.some(function(r){ return r && r.error; });
+      if(failed){ setCloudStatus('error', t('cloudSyncFailShort')); toast(t('toastSyncFail')); }
+      else{ setCloudStatus('synced', t('cloudSaved')); }
+    }).catch(function(){ setCloudStatus('error', t('cloudSyncFailShort')); toast(t('toastSyncFail')); });
+  }
+  function setCloudStatus(kind,text){
+    var el=document.getElementById('cloudStatus'); if(el) el.className='cloud-status '+kind;
+    var tx=document.getElementById('cloudStatusText'); if(tx) tx.textContent=text;
+  }
+
+  // ============================================================
+  // Login / logout / conta desativada / painel de usuários (admin)
+  // ============================================================
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  function showAuthScreen(errorMsg){
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('authedHeaderActions').classList.add('hidden');
+    var el=document.getElementById('authScreen');
+    el.classList.remove('hidden');
+    el.innerHTML=''
+      + '<div class="auth-screen"><div class="auth-card">'
+      + '<h1>'+t('authTitle')+'</h1>'
+      + '<div class="auth-sub">'+t('authSub')+'</div>'
+      + (errorMsg ? '<div class="auth-error">'+esc(errorMsg)+'</div>' : '')
+      + '<div class="field"><label>'+t('authEmail')+'</label><input id="authEmail" type="email" autocomplete="username"></div>'
+      + '<div class="field"><label>'+t('authPassword')+'</label><input id="authPassword" type="password" autocomplete="current-password"></div>'
+      + '<button class="btn btn-primary" id="authSubmitBtn">'+t('authSubmit')+'</button>'
+      + '</div></div>';
+    document.getElementById('authSubmitBtn').onclick=doLogin;
+    document.getElementById('authPassword').addEventListener('keydown', function(ev){ if(ev.key==='Enter') doLogin(); });
+    var emailField=document.getElementById('authEmail');
+    setTimeout(function(){ emailField.focus(); },50);
+  }
+
+  function doLogin(){
+    if(!cloudReady || !sb){ showAuthScreen(t('authNotConfigured')); return; }
+    var email=document.getElementById('authEmail').value.trim();
+    var pass=document.getElementById('authPassword').value;
+    if(!email || !pass) return;
+    var btn=document.getElementById('authSubmitBtn');
+    btn.disabled=true; btn.textContent=t('authSubmitting');
+    sb.auth.signInWithPassword({email:email, password:pass}).then(function(res){
+      if(res.error){ showAuthScreen(t('authWrongCreds')); return; }
+      session=res.data.session;
+      afterLogin();
+    }).catch(function(){ showAuthScreen(t('authNoConnection')); });
+  }
+
+  function afterLogin(){
+    sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle().then(function(res){
+      if(res.error || !res.data){ showDeactivatedScreen(); return; }
+      myProfile=res.data;
+      if(!myProfile.active){ showDeactivatedScreen(); return; }
+      targetUserId=session.user.id;
+      var afterUsersLoaded=myProfile.is_admin ? loadAllProfiles() : Promise.resolve();
+      afterUsersLoaded.then(function(){ return loadCloudState(targetUserId); }).then(function(){
+        document.getElementById('authScreen').classList.add('hidden');
+        document.getElementById('authScreen').innerHTML='';
+        document.getElementById('app').classList.remove('hidden');
+        document.getElementById('authedHeaderActions').classList.remove('hidden');
+        document.getElementById('btnUsers').style.display=myProfile.is_admin ? '' : 'none';
+        updateHeaderTexts();
+        render();
+        setCloudStatus('synced', t('cloudConnected'));
+      });
+    }).catch(function(){ showAuthScreen(t('authNoConnection')); });
+  }
+
+  function loadAllProfiles(){
+    return sb.from('profiles').select('*').order('created_at',{ascending:true}).then(function(res){
+      allProfiles=res.data||[];
+    });
+  }
+
+  function showDeactivatedScreen(){
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('authedHeaderActions').classList.add('hidden');
+    var el=document.getElementById('authScreen');
+    el.classList.remove('hidden');
+    el.innerHTML=''
+      + '<div class="auth-screen"><div class="auth-card">'
+      + '<h1>'+t('deactivatedTitle')+'</h1>'
+      + '<div class="auth-sub">'+t('deactivatedText')+'</div>'
+      + '<button class="btn btn-primary" id="authLogoutBtn">'+t('signOut')+'</button>'
+      + '</div></div>';
+    document.getElementById('authLogoutBtn').onclick=doLogout;
+  }
+
+  function doLogout(){
+    if(!sb) return;
+    sb.auth.signOut().then(function(){
+      session=null; myProfile=null; allProfiles=[]; targetUserId=null;
+      state=defaultState();
+      showAuthScreen();
+    });
+  }
+
+  // ---- Painel de usuários (só aparece pra quem é admin) ----
+  function openUsersModal(){
+    if(!myProfile || !myProfile.is_admin) return;
+    renderUsersModal();
+  }
+  function renderUsersModal(){
+    var rows=allProfiles.map(function(p){
+      var isMe=p.id===session.user.id;
+      var badges=''
+        + (p.is_admin ? '<span class="u-badge">'+t('userAdmin')+'</span>' : '')
+        + (!p.active ? '<span class="u-badge" style="background:rgba(251,113,133,.15);color:var(--red);">'+t('userInactive')+'</span>' : '');
+      return '<div class="user-row" data-user-id="'+p.id+'">'
+        + '<div><div class="u-name">'+esc(p.display_name||p.email||'—')+(isMe?' ('+t('userYou')+')':'')+badges+'</div><div class="u-email">'+esc(p.email||'')+'</div></div>'
+        + '<div class="u-actions">'
+        + (isMe ? '' : '<button class="btn btn-ghost btn-sm" data-action="viewUserData" data-user-id="'+p.id+'">'+t('userViewData')+'</button>')
+        + (isMe ? '' : '<button class="btn '+(p.active?'btn-ghost':'btn-primary')+' btn-sm" data-action="toggleUserActive" data-user-id="'+p.id+'" data-next="'+(!p.active)+'">'+(p.active?t('userDeactivate'):t('userActivate'))+'</button>')
+        + '</div></div>';
+    }).join('');
+    openModal(''
+      + '<h2>'+t('usersModalTitle')+'</h2>'
+      + '<p style="font-size:12.5px;color:var(--text-mute);margin:-8px 0 16px;">'+t('usersModalHint')+'</p>'
+      + '<div class="user-list">'+rows+'</div>'
+      + '<div class="modal-actions"><button class="btn btn-ghost" data-modal-close>'+t('cancel')+'</button></div>');
+  }
+  function toggleUserActive(userId, nextActive){
+    sb.from('profiles').update({active:nextActive}).eq('id',userId).then(function(res){
+      if(res.error){ toast(t('toastSyncFail')); return; }
+      var p=allProfiles.find(function(x){ return x.id===userId; });
+      if(p) p.active=nextActive;
+      renderUsersModal();
+      toast(nextActive ? (lang==='en'?'User reactivated.':'Usuário reativado.') : (lang==='en'?'User deactivated.':'Usuário desativado.'));
+    });
+  }
+  function viewUserData(userId){
+    closeModal();
+    loadCloudState(userId).then(function(){
+      go({name:'dashboard'});
+      render();
+    });
+  }
+  function backToMyPanel(){
+    loadCloudState(session.user.id).then(function(){
+      go({name:'dashboard'});
+      render();
+    });
+  }
+
+  function n(v){ var x=Number(v); return isFinite(x)?x:0; }
+  function fmtInt(v){ return n(v).toLocaleString('pt-BR',{maximumFractionDigits:0}); }
+  function fmtNum(v,d){ d=d==null?2:d; return n(v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+  // Para lucros pequenos, 2 casas decimais arredondam pra "0,00" mesmo o valor sendo maior que zero.
+  // Quando o valor é menor que 1 centavo, mostra com mais casas pra não sumir da tela.
+  function fmtUSD(v){ var x=n(v); var d=(x!==0 && Math.abs(x)<0.01)?4:2; return 'US$ '+fmtNum(x,d); }
+  function fmtBRL(v){ var x=n(v); var d=(x!==0 && Math.abs(x)<0.01)?4:2; return 'R$ '+fmtNum(x,d); }
+  // Em US-EN o dólar vira a moeda principal (maior/primeira) e o real vira a secundária (entre parênteses);
+  // em PT-BR é o contrário. Essas duas funções escolhem qual valor formatado vai em cada posição.
+  function fmtPrimary(brl,usd){ return lang==='en' ? fmtUSD(usd) : fmtBRL(brl); }
+  function fmtSecondary(brl,usd){ return lang==='en' ? fmtBRL(brl) : fmtUSD(usd); }
+
+  function computeEntry(e){
+    // O cliente já entra com o "Total compra" (seu próprio zeny), comprado de uma vez.
+    // A venda pode ser dividida em várias partes (uma por dia, com preço diferente cada uma —
+    // por exemplo quando o jogo limita quantos itens dá pra revender por dia).
+    // O que é vendido a ele é só o ganho da manipulação: (receita bruta - total compra), menos a taxa do exchange
+    // (padrão 15%, mas editável por venda — costuma variar entre 9% e 15%).
+    var amount=n(e.amount), sp=n(e.startPrice), perM=n(e.pricePerMillionUsd), rate=n(e.usdBrlRate);
+    var totalStarting=amount*sp;
+    var sales=e.sales||[];
+    var rawIncome=0, soldQty=0;
+    sales.forEach(function(s){ rawIncome += n(s.qty)*n(s.price); soldQty += n(s.qty); });
+    var income=rawIncome-totalStarting;
+    var taxRatePct=(e.taxRate==null || e.taxRate==='')?DEFAULT_TAX_RATE_PCT:n(e.taxRate);
+    var taxExchange=income*(taxRatePct/100);
+    var netProfit=income-taxExchange;
+    var priceUSD=(netProfit/1000000)*perM;
+    var priceBRL=priceUSD*rate;
+    return {totalStarting:totalStarting, rawIncome:rawIncome, income:income, taxRatePct:taxRatePct, taxExchange:taxExchange, netProfit:netProfit, priceUSD:priceUSD, priceBRL:priceBRL, soldQty:soldQty};
+  }
+
+  function itemEntries(itemId){ return state.entries.filter(function(e){ return e.itemId===itemId; }); }
+  function itemSummary(itemId){
+    var list=itemEntries(itemId);
+    var netSum=0, pendBRL=0, pendUSD=0, pendCount=0;
+    list.forEach(function(e){
+      var c=computeEntry(e);
+      netSum+=c.netProfit;
+      if(e.status==='done' && e.payment==='pending'){ pendBRL+=c.priceBRL; pendUSD+=c.priceUSD; pendCount++; }
+    });
+    return {count:list.length, net:netSum, pendBRL:pendBRL, pendUSD:pendUSD, pendCount:pendCount};
+  }
+
+  function toast(msg){
+    var root=document.getElementById('toastRoot');
+    var el=document.createElement('div');
+    el.className='toast';
+    el.textContent=msg;
+    root.appendChild(el);
+    setTimeout(function(){ el.classList.add('fadeout'); setTimeout(function(){ el.remove(); },300); },2600);
+  }
+
+  function openModal(html){
+    closeModal();
+    var overlay=document.createElement('div');
+    overlay.className='modal-overlay';
+    overlay.id='activeModal';
+    overlay.innerHTML='<div class="modal-card">'+html+'</div>';
+    overlay.addEventListener('click', function(ev){ if(ev.target===overlay) closeModal(); });
+    document.getElementById('modalRoot').appendChild(overlay);
+    var firstInput=overlay.querySelector('input');
+    if(firstInput) setTimeout(function(){ firstInput.focus(); firstInput.select&&firstInput.select(); },50);
+  }
+  function closeModal(){ var m=document.getElementById('activeModal'); if(m) m.remove(); }
+
+  var view={name:'dashboard'};
+  function go(v){ view=v; render(); }
+
+  function render(){
+    var app=document.getElementById('app');
+    if(view.name==='item' && !state.items.find(function(i){return i.id===view.id;})){ view={name:'dashboard'}; }
+    if(view.name==='dashboard') app.innerHTML=renderDashboard();
+    else if(view.name==='item') app.innerHTML=renderItemView(view.id);
+  }
+
+  function adminBannerHTML(){
+    if(!isReadOnly()) return '';
+    var p=allProfiles.find(function(x){ return x.id===targetUserId; });
+    var label=p ? (p.display_name||p.email) : targetUserId;
+    return '<div class="admin-banner"><span>'+t('adminBannerPrefix')+'<strong>'+esc(label)+'</strong>'+t('adminBannerSuffix')+'</span>'
+      + '<button class="btn btn-ghost btn-sm" data-action="backToMyPanel">'+t('backToMyPanel')+'</button></div>';
+  }
+
+  function renderDashboard(){
+    var paid=0, paidUSD=0, pending=0, pendingUSD=0, activeItems=0, activeDeals=0;
+    state.items.forEach(function(it){
+      var entries=itemEntries(it.id);
+      if(entries.some(function(e){ return e.status==='in_progress'; })) activeItems++;
+    });
+    state.entries.forEach(function(e){
+      var c=computeEntry(e);
+      if(e.payment==='paid'){ paid+=c.priceBRL; paidUSD+=c.priceUSD; } else if(e.status==='done'){ pending+=c.priceBRL; pendingUSD+=c.priceUSD; }
+      if(e.status==='in_progress') activeDeals++;
+    });
+
+    var cards=state.items.map(function(it,i){
+      var s=itemSummary(it.id);
+      return '<div class="item-card" data-item="'+it.id+'" style="animation-delay:'+(i*0.04)+'s">'
+        + (s.pendCount>0 ? '<div class="item-pending-badge">'+(lang==='en' ? (s.pendCount+' pending') : (s.pendCount+' pendente'+(s.pendCount>1?'s':'')))+'</div>' : '')
+        + '<div class="item-name">'+esc(it.name)+'</div>'
+        + '<div class="item-meta">'
+        + '<div>'+(lang==='en' ? (s.count+' client'+(s.count!==1?'s':'')) : (s.count+' cliente'+(s.count!==1?'s':'')))+'</div>'
+        + '<div class="net">'+(lang==='en'?'Net':'Líquido')+': '+fmtInt(s.net)+' <span class="zeny-unit">zeny</span></div>'
+        + (s.pendBRL>0 ? '<div>'+t('clientPendingPrefix')+fmtPrimary(s.pendBRL,s.pendUSD)+' <span class="usd-inline">('+fmtSecondary(s.pendBRL,s.pendUSD)+')</span></div>' : '')
+        + '</div></div>';
+    }).join('');
+
+    return ''
+      + adminBannerHTML()
+      + '<div class="rate-bar"><span class="rate-label">'+t('rateLabel')+' <strong id="currentRateVal">'+fmtNum(state.settings.usdBrlRate,4)+'</strong></span>'
+      + (isReadOnly() ? '' : '<button class="btn btn-ghost btn-sm" id="updateAllRatesBtn" title="'+esc(t('updateAllRatesTitle'))+'">'+t('updateAllRatesBtn')+'</button>')+'</div>'
+      + '<div class="search-bar"><span class="search-icon">🔍</span><input id="clientSearch" type="text" autocomplete="off" placeholder="'+esc(t('searchPlaceholder'))+'"></div>'
+      + '<div id="searchResults" class="hidden"></div>'
+      + '<div id="itemsSection">'
+      + '<div class="stats-row">'
+      + '<div class="stat-card"><div class="stat-label">'+t('statReceived')+'</div><div class="stat-value green">'+fmtPrimary(paid,paidUSD)+'</div><div class="stat-sub">'+fmtSecondary(paid,paidUSD)+'</div></div>'
+      + '<div class="stat-card"><div class="stat-label">'+t('statToReceive')+'</div><div class="stat-value amber">'+fmtPrimary(pending,pendingUSD)+'</div><div class="stat-sub">'+fmtSecondary(pending,pendingUSD)+'</div></div>'
+      + '<div class="stat-card"><div class="stat-label">'+t('statActiveItems')+'</div><div class="stat-value">'+activeItems+'</div></div>'
+      + '<div class="stat-card"><div class="stat-label">'+t('statActiveDeals')+'</div><div class="stat-value">'+activeDeals+'</div></div>'
+      + '</div>'
+      + '<div class="section-title">'+t('sectionItems')+'</div>'
+      + '<div class="items-grid">'
+      + cards
+      + (isReadOnly() ? '' : '<div class="item-card new" id="addItemCard"><div class="plus">+</div><div>'+t('newItem')+'</div></div>')
+      + '</div>'
+      + '</div>';
+  }
+
+  function computeClientMatches(query){
+    var q=query.trim().toLowerCase();
+    if(!q) return [];
+    var byClient={};
+    state.entries.forEach(function(e){
+      if(!e.customer || e.customer.toLowerCase().indexOf(q)===-1) return;
+      var key=e.customer;
+      if(!byClient[key]) byClient[key]={name:e.customer, items:[], pendingBRL:0, pendingUSD:0, netTotal:0};
+      var item=state.items.find(function(i){ return i.id===e.itemId; });
+      var c=computeEntry(e);
+      byClient[key].items.push({itemName:item?item.name:t('itemRemoved'), itemId:e.itemId, netProfit:c.netProfit, priceBRL:c.priceBRL, priceUSD:c.priceUSD, status:e.status, payment:e.payment});
+      byClient[key].netTotal+=c.netProfit;
+      if(e.status==='done' && e.payment==='pending'){ byClient[key].pendingBRL+=c.priceBRL; byClient[key].pendingUSD+=c.priceUSD; }
+    });
+    return Object.keys(byClient).map(function(k){ return byClient[k]; }).sort(function(a,b){ return b.pendingBRL-a.pendingBRL; });
+  }
+
+  function renderSearchResults(query){
+    var results=document.getElementById('searchResults');
+    var itemsSection=document.getElementById('itemsSection');
+    if(!results || !itemsSection) return;
+    if(!query.trim()){
+      results.classList.add('hidden'); results.innerHTML='';
+      itemsSection.classList.remove('hidden');
+      return;
+    }
+    itemsSection.classList.add('hidden');
+    results.classList.remove('hidden');
+    var matches=computeClientMatches(query);
+    if(matches.length===0){
+      results.innerHTML='<div class="empty-state"><div class="big-icon">🔍</div>'+t('noClientFoundPrefix')+esc(query)+'".</div>';
+      return;
+    }
+    var totalBRL=0, totalUSD=0;
+    matches.forEach(function(m){ totalBRL+=m.pendingBRL; totalUSD+=m.pendingUSD; });
+    var totalBar = matches.length>1
+      ? '<div class="search-total-bar"><span>'+t('searchTotalPrefix')+matches.length+t('searchTotalSuffix')+'</span><span class="search-total-val">'+fmtPrimary(totalBRL,totalUSD)+' <span class="usd-inline">('+fmtSecondary(totalBRL,totalUSD)+')</span></span></div>'
+      : '';
+    results.innerHTML=totalBar+matches.map(function(m,i){
+      return '<div class="client-card" style="animation-delay:'+(i*0.04)+'s">'
+        + '<div class="client-card-head"><div class="client-name">'+esc(m.name)+'</div>'
+        + '<div class="client-pending '+(m.pendingBRL>0?'amber':'muted')+'">'+(m.pendingBRL>0?t('clientPendingPrefix')+fmtPrimary(m.pendingBRL,m.pendingUSD)+' <span class="usd-inline">('+fmtSecondary(m.pendingBRL,m.pendingUSD)+')</span>':t('noPending'))+'</div></div>'
+        + '<div class="client-items">'
+        + m.items.map(function(it){
+            var netClass=it.netProfit>=0?'pos':'neg';
+            return '<div class="client-item-row" data-goto-item="'+it.itemId+'">'
+              + '<span class="ci-item">'+esc(it.itemName)+'</span>'
+              + '<span class="ci-net '+netClass+'">'+fmtInt(it.netProfit)+' <span class="zeny-unit">zeny</span></span>'
+              + '<span class="ci-brl '+netClass+'">'+fmtPrimary(it.priceBRL,it.priceUSD)+'<span class="ci-usd">'+fmtSecondary(it.priceBRL,it.priceUSD)+'</span></span>'
+              + '<span class="ci-badges"><span class="pill-select status-'+it.status+'">'+(it.status==='done'?t('statusDone'):t('statusInProgress'))+'</span><span class="pill-select pay-'+it.payment+'">'+(it.payment==='paid'?t('paymentPaid'):t('paymentPending'))+'</span></span>'
+              + '</div>';
+          }).join('')
+        + '</div></div>';
+    }).join('');
+  }
+
+  function renderItemView(itemId){
+    var item=state.items.find(function(i){ return i.id===itemId; });
+    var s=itemSummary(itemId);
+    var entries=itemEntries(itemId);
+    var rows=entries.map(function(e){ return rowHTML(e); }).join('');
+    return ''
+      + adminBannerHTML()
+      + '<div class="breadcrumb"><button class="btn btn-ghost btn-sm" id="backBtn">'+t('backToDashboard')+'</button></div>'
+      + '<div class="item-header">'
+      + '<h1>'+esc(item.name)+'</h1>'
+      + '<div class="item-header-actions">'
+      + (isReadOnly() ? '' : '<button class="btn btn-ghost btn-sm" id="renameItemBtn">'+t('renameBtn')+'</button>')
+      + '<button class="btn btn-ghost btn-sm" id="csvItemBtn">'+t('csvBtn')+'</button>'
+      + (isReadOnly() ? '' : '<button class="btn btn-danger btn-sm" id="deleteItemBtn">'+t('deleteItemBtn')+'</button>')
+      + '</div></div>'
+      + '<div class="stats-row">'
+      + '<div class="stat-card"><div class="stat-label">'+t('statClients')+'</div><div class="stat-value" id="clientCountVal">'+s.count+'</div></div>'
+      + '<div class="stat-card"><div class="stat-label">'+t('statNetTotal')+'</div><div class="stat-value green" id="netTotalVal">'+fmtInt(s.net)+' <span class="zeny-unit">zeny</span></div></div>'
+      + '<div class="stat-card"><div class="stat-label">'+t('statToReceive')+'</div><div class="stat-value amber" id="pendBRLVal">'+fmtPrimary(s.pendBRL,s.pendUSD)+'</div><div class="stat-sub" id="pendUSDVal">'+fmtSecondary(s.pendBRL,s.pendUSD)+'</div></div>'
+      + '</div>'
+      + (isReadOnly() ? '' : '<div class="toolbar"><button class="btn btn-primary" id="addEntryBtn">'+t('addClientBtn')+'</button></div>')
+      + (entries.length===0
+        ? '<div class="empty-state"><div class="big-icon">📭</div>'+t('emptyClientsLine1')+'<br>'+t('emptyClientsLine2')+'</div>'
+        : '<div class="table-wrap"><table><thead><tr>'
+          + '<th class="col-customer">'+t('thClient')+'</th><th class="col-amount">'+t('thQty')+'</th><th class="col-price">'+t('thBuyPrice')+'</th><th class="col-date">'+t('thBuyDate')+'</th>'
+          + '<th>'+t('thSold')+'</th><th>'+t('thNetProfit')+'</th><th>'+t('thValue')+'</th><th>'+t('thStatus')+'</th><th>'+t('thPayment')+'</th><th></th>'
+          + '</tr></thead><tbody id="entriesBody">'+rows+'</tbody></table></div>');
+  }
+
+  function detailField(label,key,value){
+    return '<div class="detail-field"><label>'+label+'</label><div class="computed" data-calc="'+key+'">'+value+'</div></div>';
+  }
+  function detailInput(label,field,value,step,min,max){
+    var bounds=(min!=null?' min="'+min+'"':'')+(max!=null?' max="'+max+'"':'');
+    var dis=isReadOnly()?' disabled':'';
+    return '<div class="detail-field"><label>'+label+'</label><input type="number" step="'+(step||1)+'"'+bounds+' data-field="'+field+'" value="'+value+'"'+dis+'></div>';
+  }
+  function detailInputRate(label,field,value){
+    var dis=isReadOnly()?' disabled':'';
+    return '<div class="detail-field"><label>'+label+'</label><div class="with-btn"><input type="number" step="0.0001" data-field="'+field+'" value="'+value+'"'+dis+'>'+(isReadOnly()?'':'<button class="icon-btn" data-action="fetchRate" title="'+esc(t('fetchRateTitle'))+'">🔄</button>')+'</div></div>';
+  }
+
+  function saleRowHTML(s){
+    var dis=isReadOnly()?' disabled':'';
+    return '<div class="sales-row" data-sale-id="'+s.id+'">'
+      + '<input type="date" data-sale-field="date" value="'+(s.date||'')+'"'+dis+'>'
+      + '<input type="number" step="any" data-sale-field="qty" value="'+s.qty+'" placeholder="'+esc(t('placeholderQty'))+'"'+dis+'>'
+      + '<input type="number" step="any" data-sale-field="price" value="'+s.price+'" placeholder="'+esc(t('placeholderPrice'))+'"'+dis+'>'
+      + '<span class="computed" data-sale-calc="subtotal">'+fmtInt(n(s.qty)*n(s.price))+'</span>'
+      + (isReadOnly() ? '' : '<button class="icon-btn danger" data-action="deleteSale" data-sale-id="'+s.id+'" title="'+esc(t('deleteSaleTitle'))+'">🗑</button>')
+      + '</div>';
+  }
+  function salesBlockHTML(entry){
+    var sales=entry.sales||[];
+    var rows=sales.length
+      ? '<div class="sales-head"><span>'+t('salesHeadDate')+'</span><span>'+t('salesHeadQty')+'</span><span>'+t('salesHeadPrice')+'</span><span>'+t('salesHeadSubtotal')+'</span><span></span></div>'+sales.map(saleRowHTML).join('')
+      : '<div class="sales-empty">'+t('salesEmpty')+'</div>';
+    return rows + (isReadOnly() ? '' : '<button class="btn btn-ghost btn-sm" data-action="addSale" style="margin-top:8px;">'+t('addSaleBtn')+'</button>');
+  }
+
+  function rowHTML(e){
+    var c=computeEntry(e);
+    var netClass=c.netProfit>=0?'pos':'neg';
+    var amt=n(e.amount);
+    var soldClass=amt>0 ? (c.soldQty>=amt?'sold-complete':'sold-partial') : '';
+    var dis=isReadOnly()?' disabled':'';
+    return ''
+    + '<tr data-id="'+e.id+'">'
+    + '<td><input class="cell-input col-customer" data-field="customer" value="'+esc(e.customer)+'" placeholder="'+esc(t('placeholderClientName'))+'"'+dis+'></td>'
+    + '<td><input class="cell-input col-amount'+(amt===0?' zero-warn':'')+'" type="number" step="any" data-field="amount" value="'+e.amount+'" title="'+(amt===0?esc(t('zeroWarnTitle')):'')+'"'+dis+'></td>'
+    + '<td><input class="cell-input col-price" type="number" step="any" data-field="startPrice" value="'+e.startPrice+'"'+dis+'></td>'
+    + '<td><input class="cell-input col-date" type="date" data-field="startDate" value="'+(e.startDate||'')+'"'+dis+'></td>'
+    + '<td class="computed '+soldClass+'" data-calc="soldQty">'+c.soldQty+'/'+fmtInt(amt)+'</td>'
+    + '<td class="computed big '+netClass+'" data-calc="netProfit">'+fmtInt(c.netProfit)+' <span class="zeny-unit">zeny</span></td>'
+    + '<td class="computed big" data-calc="priceBRL"><div class="dual-currency"><span class="dc-brl '+netClass+'" data-calc-sub="brl">'+fmtPrimary(c.priceBRL,c.priceUSD)+'</span><span class="dc-usd" data-calc-sub="usd">'+fmtSecondary(c.priceBRL,c.priceUSD)+'</span></div></td>'
+    + '<td><select class="pill-select status-'+e.status+'" data-field="status"'+dis+'>'
+    +   '<option value="in_progress" '+(e.status==='in_progress'?'selected':'')+'>'+t('statusInProgress')+'</option>'
+    +   '<option value="done" '+(e.status==='done'?'selected':'')+'>'+t('statusDone')+'</option>'
+    + '</select></td>'
+    + '<td><select class="pill-select pay-'+e.payment+'" data-field="payment"'+dis+'>'
+    +   '<option value="pending" '+(e.payment==='pending'?'selected':'')+'>'+t('paymentPending')+'</option>'
+    +   '<option value="paid" '+(e.payment==='paid'?'selected':'')+'>'+t('paymentPaid')+'</option>'
+    + '</select></td>'
+    + '<td class="row-actions"><button class="detail-toggle" data-action="expand" title="'+esc(t('titleDetails'))+'"><span class="chev">▾</span>'+t('titleDetails')+'</button>'+(isReadOnly()?'':'<button class="icon-btn danger" data-action="delete" title="'+esc(t('titleDelete'))+'">🗑</button>')+'</td>'
+    + '</tr>'
+    + '<tr class="details-row" data-id="'+e.id+'" data-details="'+e.id+'"><td colspan="10"><div class="details-panel hidden">'
+    + detailField(t('detailTotalBuy'),'totalStarting',fmtInt(c.totalStarting))
+    + '<div class="detail-field" style="grid-column:1/-1;"><label>'+t('detailSalesLabel')+'</label><div data-sales-container>'+salesBlockHTML(e)+'</div></div>'
+    + detailField(t('detailGrossRevenue'),'rawIncome',fmtInt(c.rawIncome))
+    + detailField(t('detailInGameProfit'),'income',fmtInt(c.income))
+    + detailInput(t('detailTaxRate'),'taxRate',Math.round(e.taxRate==null?DEFAULT_TAX_RATE_PCT:e.taxRate),1,9,15)
+    + detailField(t('detailTaxValue'),'taxExchange',fmtInt(c.taxExchange)+' zeny')
+    + detailInput(t('detailPerMillion'),'pricePerMillionUsd',e.pricePerMillionUsd,0.01)
+    + detailField(t('detailUsdValue'),'priceUSD',fmtUSD(c.priceUSD))
+    + detailInputRate(t('detailRate'),'usdBrlRate',e.usdBrlRate)
+    + '<div class="detail-field" style="grid-column:1/-1;"><label>'+t('detailNotes')+'</label><input data-field="notes" value="'+esc(e.notes||'')+'" placeholder="'+esc(t('placeholderOptional'))+'"'+(isReadOnly()?' disabled':'')+'></div>'
+    + '</div></td></tr>';
+  }
+
+  function updateRowComputed(id){
+    var entry=state.entries.find(function(x){ return x.id===id; });
+    if(!entry) return;
+    var c=computeEntry(entry);
+    var amt=n(entry.amount);
+    // Automação: se já foi vendido tudo que foi comprado, marca como concluído sozinho.
+    var autoCompleted=false;
+    if(amt>0 && c.soldQty>=amt && entry.status!=='done'){
+      entry.status='done';
+      autoCompleted=true;
+      saveState();
+    }
+    var tr=document.querySelector('tr[data-id="'+id+'"]:not(.details-row)');
+    if(tr){
+      var netCell=tr.querySelector('[data-calc="netProfit"]');
+      if(netCell){ netCell.innerHTML=fmtInt(c.netProfit)+' <span class="zeny-unit">zeny</span>'; netCell.classList.toggle('pos', c.netProfit>=0); netCell.classList.toggle('neg', c.netProfit<0); }
+      var brlCell=tr.querySelector('[data-calc="priceBRL"]');
+      if(brlCell){
+        var brlSpan=brlCell.querySelector('[data-calc-sub="brl"]');
+        var usdSpan=brlCell.querySelector('[data-calc-sub="usd"]');
+        if(brlSpan){ brlSpan.textContent=fmtPrimary(c.priceBRL,c.priceUSD); brlSpan.classList.toggle('pos', c.netProfit>=0); brlSpan.classList.toggle('neg', c.netProfit<0); }
+        if(usdSpan){ usdSpan.textContent=fmtSecondary(c.priceBRL,c.priceUSD); }
+      }
+      var qtyInput=tr.querySelector('input[data-field="amount"]');
+      if(qtyInput){
+        var isZero=amt===0;
+        qtyInput.classList.toggle('zero-warn', isZero);
+        qtyInput.title=isZero?t('zeroWarnTitle'):'';
+      }
+      var soldCell=tr.querySelector('[data-calc="soldQty"]');
+      if(soldCell){
+        soldCell.textContent=c.soldQty+'/'+fmtInt(amt);
+        soldCell.classList.toggle('sold-complete', amt>0 && c.soldQty>=amt);
+        soldCell.classList.toggle('sold-partial', amt>0 && c.soldQty<amt);
+      }
+      if(autoCompleted){
+        var statusSel=tr.querySelector('select[data-field="status"]');
+        if(statusSel){ statusSel.value='done'; statusSel.className='pill-select status-done'; }
+      }
+    }
+    var dr=document.querySelector('tr.details-row[data-details="'+id+'"]');
+    if(dr){
+      var map={totalStarting:fmtInt(c.totalStarting),rawIncome:fmtInt(c.rawIncome),income:fmtInt(c.income),taxExchange:fmtInt(c.taxExchange)+' zeny',priceUSD:fmtUSD(c.priceUSD)};
+      Object.keys(map).forEach(function(k){
+        var el=dr.querySelector('[data-calc="'+k+'"]');
+        if(el) el.textContent=map[k];
+      });
+    }
+    if(autoCompleted) toast(t('toastAutoDone'));
+    updateItemStatsBar();
+  }
+
+  function updateItemStatsBar(){
+    if(view.name!=='item') return;
+    var s=itemSummary(view.id);
+    var elCount=document.getElementById('clientCountVal'); if(elCount) elCount.textContent=s.count;
+    var elNet=document.getElementById('netTotalVal'); if(elNet) elNet.innerHTML=fmtInt(s.net)+' <span class="zeny-unit">zeny</span>';
+    var elBRL=document.getElementById('pendBRLVal'); if(elBRL) elBRL.textContent=fmtPrimary(s.pendBRL,s.pendUSD);
+    var elUSD=document.getElementById('pendUSDVal'); if(elUSD) elUSD.textContent=fmtSecondary(s.pendBRL,s.pendUSD);
+  }
+
+  function addEntry(){
+    var id=uid();
+    state.entries.push({
+      id:id, itemId:view.id, customer:'', amount:0, startPrice:0,
+      startDate:todayStr(), sales:[],
+      pricePerMillionUsd:state.settings.defaultPerMillion, usdBrlRate:state.settings.usdBrlRate,
+      taxRate:DEFAULT_TAX_RATE_PCT,
+      status:'in_progress', payment:'pending', notes:''
+    });
+    saveState();
+    render();
+    setTimeout(function(){
+      var inp=document.querySelector('tr[data-id="'+id+'"] input[data-field="customer"]');
+      if(inp) inp.focus();
+    },30);
+  }
+
+  function confirmDeleteEntry(id){
+    var entry=state.entries.find(function(e){ return e.id===id; });
+    openModal(''
+      + '<h2>'+t('modalDeleteClientTitle')+'</h2>'
+      + '<p style="color:var(--text-dim);font-size:14px;">'+t('modalDeleteClientTextPrefix')+esc(entry&&entry.customer?entry.customer:t('noName'))+t('modalDeleteClientTextSuffix')+'</p>'
+      + '<div class="modal-actions"><button class="btn btn-ghost" data-modal-close>'+t('cancel')+'</button><button class="btn btn-danger" id="confirmDeleteEntryBtn">'+t('delete')+'</button></div>');
+    document.getElementById('confirmDeleteEntryBtn').onclick=function(){
+      state.entries=state.entries.filter(function(e){ return e.id!==id; });
+      saveState(); closeModal(); render(); toast(t('toastClientRemoved'));
+    };
+  }
+
+  function confirmDeleteItem(){
+    var item=state.items.find(function(i){ return i.id===view.id; });
+    var count=itemEntries(view.id).length;
+    openModal(''
+      + '<h2>'+t('modalDeleteItemTitle')+'</h2>'
+      + '<p style="color:var(--text-dim);font-size:14px;">'+t('modalDeleteItemTextPrefix')+esc(item.name)+t('modalDeleteItemTextMid')+count+t('modalDeleteItemTextSuffix')+'</p>'
+      + '<div class="modal-actions"><button class="btn btn-ghost" data-modal-close>'+t('cancel')+'</button><button class="btn btn-danger" id="confirmDeleteItemBtn">'+t('delete')+'</button></div>');
+    document.getElementById('confirmDeleteItemBtn').onclick=function(){
+      var id=view.id;
+      state.entries=state.entries.filter(function(e){ return e.itemId!==id; });
+      state.items=state.items.filter(function(i){ return i.id!==id; });
+      saveState(); closeModal(); go({name:'dashboard'}); toast(t('toastItemDeleted'));
+    };
+  }
+
+  function renameItem(){
+    var item=state.items.find(function(i){ return i.id===view.id; });
+    openModal(''
+      + '<h2>'+t('modalRenameTitle')+'</h2>'
+      + '<div class="field"><label>'+t('labelItemName')+'</label><input id="renameInput" value="'+esc(item.name)+'"></div>'
+      + '<div class="modal-actions"><button class="btn btn-ghost" data-modal-close>'+t('cancel')+'</button><button class="btn btn-primary" id="renameSaveBtn">'+t('save')+'</button></div>');
+    var inp=document.getElementById('renameInput');
+    inp.addEventListener('keydown', function(ev){ if(ev.key==='Enter') document.getElementById('renameSaveBtn').click(); });
+    document.getElementById('renameSaveBtn').onclick=function(){
+      var val=inp.value.trim();
+      if(val){ item.name=val; saveState(); closeModal(); render(); toast(t('toastItemRenamed')); }
+    };
+  }
+
+  function openAddItemModal(){
+    openModal(''
+      + '<h2>'+t('modalNewItemTitle')+'</h2>'
+      + '<div class="field"><label>'+t('labelItemName')+'</label><input id="newItemInput" placeholder="'+esc(t('placeholderExampleItem'))+'"></div>'
+      + '<div class="modal-actions"><button class="btn btn-ghost" data-modal-close>'+t('cancel')+'</button><button class="btn btn-primary" id="createItemBtn">'+t('create')+'</button></div>');
+    var inp=document.getElementById('newItemInput');
+    inp.addEventListener('keydown', function(ev){ if(ev.key==='Enter') document.getElementById('createItemBtn').click(); });
+    document.getElementById('createItemBtn').onclick=function(){
+      var val=inp.value.trim();
+      if(!val) return;
+      var id=uid();
+      state.items.push({id:id,name:val,createdAt:Date.now()});
+      saveState(); closeModal(); go({name:'item', id:id});
+    };
+  }
+
+  function openSettingsModal(){
+    var s=state.settings;
+    var ro=isReadOnly();
+    var dis=ro?' disabled':'';
+    openModal(''
+      + '<h2>'+t('modalSettingsTitle')+'</h2>'
+      + '<div class="field"><label>'+t('labelExchangeFee')+'</label><div class="hint" style="margin-top:0;">'+t('hintExchangeFee')+'</div></div>'
+      + '<div class="field"><label>'+t('labelDefaultRate')+'</label>'
+      + '<div style="display:flex;gap:6px;"><input id="setRate" type="number" step="0.0001" value="'+s.usdBrlRate+'"'+dis+' style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:14px;">'
+      + (ro?'':'<button class="btn btn-ghost btn-icon" data-action="fetchRateSettings" title="'+esc(t('fetchRateTitle'))+'">🔄</button>')+'</div>'
+      + '<div class="hint">'+t('hintDefaultRate')+'</div></div>'
+      + '<div class="field"><label>'+t('labelDefaultPerMillion')+'</label><input id="setPerM" type="number" step="0.01" value="'+s.defaultPerMillion+'"'+dis+'><div class="hint">'+t('hintDefaultPerMillion')+'</div></div>'
+      + '<div class="modal-actions"><button class="btn btn-ghost" data-modal-close>'+t('cancel')+'</button>'+(ro?'':'<button class="btn btn-primary" id="saveSettingsBtn">'+t('save')+'</button>')+'</div>'
+      + (ro ? '' : (''
+        + '<div class="modal-divider"></div>'
+        + '<div class="field"><label>'+t('labelBackup')+'</label><div style="display:flex;gap:8px;flex-wrap:wrap;">'
+        + '<button class="btn btn-ghost btn-sm" id="exportBtn">'+t('exportBackupBtn')+'</button>'
+        + '<button class="btn btn-ghost btn-sm" id="importBtn">'+t('importBackupBtn')+'</button>'
+        + '<input type="file" id="importFile" accept="application/json" style="display:none;"></div>'
+        + '<div class="hint">'+t('hintBackup')+'</div></div>'
+        + '<div class="danger-zone"><p>'+t('dangerZoneText')+'</p><button class="btn btn-danger btn-sm" id="clearAllBtn">'+t('clearAllBtn')+'</button></div>')));
+
+    if(ro) return;
+
+    document.getElementById('saveSettingsBtn').onclick=function(){
+      state.settings.usdBrlRate=parseFloat(document.getElementById('setRate').value)||0;
+      state.settings.defaultPerMillion=parseFloat(document.getElementById('setPerM').value)||0;
+      saveState(); closeModal(); toast(t('toastSettingsSaved'));
+    };
+    document.getElementById('exportBtn').onclick=exportBackup;
+    document.getElementById('importBtn').onclick=function(){ document.getElementById('importFile').click(); };
+    document.getElementById('importFile').addEventListener('change', handleImportFile);
+    document.getElementById('clearAllBtn').onclick=function(){
+      openModal(''
+        + '<h2>'+t('modalConfirmClearTitle')+'</h2>'
+        + '<p style="color:var(--text-dim);font-size:14px;">'+t('modalConfirmClearText')+'</p>'
+        + '<div class="modal-actions"><button class="btn btn-ghost" data-modal-close>'+t('cancel')+'</button><button class="btn btn-danger" id="reallyClearBtn">'+t('clearAllBtn').replace('🗑 ','')+'</button></div>');
+      document.getElementById('reallyClearBtn').onclick=function(){
+        state=defaultState(); saveState(); closeModal(); go({name:'dashboard'}); toast(t('toastAllCleared'));
+      };
+    };
+  }
+
+  function fetchUsdBrl(){
+    return fetch('https://economia.awesomeapi.com.br/last/USD-BRL').then(function(res){
+      if(!res.ok) throw new Error('http '+res.status);
+      return res.json();
+    }).then(function(data){
+      var bid=parseFloat(data.USDBRL && data.USDBRL.bid);
+      if(!isFinite(bid)) throw new Error('parse fail');
+      return bid;
+    });
+  }
+  function fetchRateForSettings(){
+    fetchUsdBrl().then(function(rate){
+      var el=document.getElementById('setRate');
+      if(el) el.value=rate.toFixed(4);
+      toast(t('toastRateUpdatedPrefix')+fmtNum(rate,4));
+    }).catch(function(){ toast(t('toastRateFail')); });
+  }
+  function updateAllPendingRates(){
+    fetchUsdBrl().then(function(rate){
+      state.settings.usdBrlRate=rate;
+      var count=0;
+      state.entries.forEach(function(e){
+        if(e.payment==='pending'){ e.usdBrlRate=rate; count++; }
+      });
+      saveState();
+      render();
+      toast(count>0
+        ? (lang==='en'
+            ? 'Rate '+fmtNum(rate,4)+' applied to '+count+' pending charge'+(count>1?'s':'')+'.'
+            : 'Cotação '+fmtNum(rate,4)+' aplicada em '+count+' cobrança'+(count>1?'s':'')+' pendente'+(count>1?'s':'')+'.')
+        : (lang==='en'
+            ? 'Default rate updated to '+fmtNum(rate,4)+' (no pending charges right now).'
+            : 'Cotação padrão atualizada para '+fmtNum(rate,4)+' (nenhuma cobrança pendente no momento).'));
+    }).catch(function(){ toast(t('toastRateFail')); });
+  }
+  function fetchRateInto(btn){
+    var field=btn.closest('.detail-field').querySelector('input');
+    var tr=btn.closest('tr[data-id]');
+    if(!tr) return;
+    var id=tr.dataset.id;
+    fetchUsdBrl().then(function(rate){
+      field.value=rate.toFixed(4);
+      var entry=state.entries.find(function(x){ return x.id===id; });
+      if(entry){ entry.usdBrlRate=rate; saveState(); updateRowComputed(id); }
+      toast(t('toastRateUpdatedPrefix')+fmtNum(rate,4));
+    }).catch(function(){ toast(t('toastRateFail')); });
+  }
+
+  function exportBackup(){
+    var blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url; a.download='zenybus-backup-'+todayStr()+'.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast(t('toastBackupExported'));
+  }
+  function handleImportFile(ev){
+    var file=ev.target.files[0];
+    if(!file) return;
+    var reader=new FileReader();
+    reader.onload=function(){
+      try{
+        var parsed=JSON.parse(reader.result);
+        if(!parsed.items || !parsed.entries) throw new Error('formato inválido');
+        state={settings:Object.assign(defaultState().settings, parsed.settings||{}), items:parsed.items, entries:parsed.entries};
+        saveState(); closeModal(); go({name:'dashboard'}); toast(t('toastBackupImported'));
+      }catch(e){ toast(t('toastInvalidFile')); }
+    };
+    reader.readAsText(file);
+    ev.target.value='';
+  }
+
+  function exportItemCSV(){
+    var item=state.items.find(function(i){ return i.id===view.id; });
+    var entries=itemEntries(view.id);
+    var header=lang==='en'
+      ? ['Client','Number of Items','Buy Price','Total Buy','Buy Date','Sales (date:qty@price)','Gross Revenue','In-game Profit','Exchange Fee (%)','Exchange Fee Amount','Net Profit','US$ per Million','USD Value','Rate','BRL Value','Status','Payment']
+      : ['Cliente','Numero de Itens','Preco Compra','Total Compra','Data Compra','Vendas (data:qtd@preco)','Receita Bruta','Lucro Jogo','Taxa Exchange (%)','Valor Taxa Exchange','Lucro Liquido','US$ por Milhao','Valor USD','Cotacao','Valor BRL','Status','Pagamento'];
+    var lines=[header.join(';')];
+    entries.forEach(function(e){
+      var c=computeEntry(e);
+      var salesStr=(e.sales||[]).map(function(s){
+        var d=s.date? s.date.split('-').reverse().slice(0,2).join('/') : '?';
+        return d+':'+s.qty+'@'+s.price;
+      }).join(' | ');
+      var statusStr=lang==='en' ? (e.status==='done'?'Done':'In progress') : (e.status==='done'?'Concluido':'Em andamento');
+      var paymentStr=lang==='en' ? (e.payment==='paid'?'Paid':'Pending') : (e.payment==='paid'?'Pago':'Pendente');
+      var row=[e.customer,e.amount,e.startPrice,c.totalStarting,e.startDate||'',salesStr,c.rawIncome,c.income,c.taxRatePct,c.taxExchange,c.netProfit,e.pricePerMillionUsd,c.priceUSD.toFixed(4),e.usdBrlRate,c.priceBRL.toFixed(4), statusStr, paymentStr];
+      lines.push(row.map(function(v){ return String(v).replace(/;/g,','); }).join(';'));
+    });
+    var blob=new Blob(['﻿'+lines.join('\n')],{type:'text/csv;charset=utf-8'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url; a.download=(item.name||'item')+'.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast(t('toastCsvExported'));
+  }
+
+  // Event delegation
+  document.addEventListener('click', function(ev){
+    var t=ev.target;
+    var langBtn=t.closest('[data-lang]'); if(langBtn) return setLang(langBtn.dataset.lang);
+    if(t.closest('#brandHome')) return go({name:'dashboard'});
+    if(t.closest('#addItemCard')) return openAddItemModal();
+    var itemCard=t.closest('.item-card[data-item]'); if(itemCard) return go({name:'item', id:itemCard.dataset.item});
+    if(t.closest('#backBtn')) return go({name:'dashboard'});
+    if(t.closest('#addEntryBtn')) return addEntry();
+    if(t.closest('#renameItemBtn')) return renameItem();
+    if(t.closest('#deleteItemBtn')) return confirmDeleteItem();
+    if(t.closest('#csvItemBtn')) return exportItemCSV();
+    if(t.closest('#btnSettings')) return openSettingsModal();
+    if(t.closest('#btnLogout')) return doLogout();
+    if(t.closest('#btnUsers')) return openUsersModal();
+    if(t.closest('#updateAllRatesBtn')) return updateAllPendingRates();
+    if(t.closest('[data-action="backToMyPanel"]')) return backToMyPanel();
+
+    var viewUserBtn=t.closest('[data-action="viewUserData"]');
+    if(viewUserBtn) return viewUserData(viewUserBtn.dataset.userId);
+    var toggleUserBtn=t.closest('[data-action="toggleUserActive"]');
+    if(toggleUserBtn) return toggleUserActive(toggleUserBtn.dataset.userId, toggleUserBtn.dataset.next==='true');
+
+    var expandBtn=t.closest('[data-action="expand"]');
+    if(expandBtn){
+      var tr=expandBtn.closest('tr');
+      var id=tr.dataset.id;
+      var detailsRow=document.querySelector('tr.details-row[data-details="'+id+'"]');
+      var panel=detailsRow.querySelector('.details-panel');
+      panel.classList.toggle('hidden');
+      expandBtn.classList.toggle('open');
+      return;
+    }
+    var delBtn=t.closest('[data-action="delete"]');
+    if(delBtn){ var tr2=delBtn.closest('tr'); return confirmDeleteEntry(tr2.dataset.id); }
+
+    var fetchBtn=t.closest('[data-action="fetchRate"]');
+    if(fetchBtn) return fetchRateInto(fetchBtn);
+    if(t.closest('[data-action="fetchRateSettings"]')) return fetchRateForSettings();
+    if(t.closest('[data-modal-close]')) return closeModal();
+
+    var gotoRow=t.closest('[data-goto-item]');
+    if(gotoRow) return go({name:'item', id:gotoRow.dataset.gotoItem});
+
+    var addSaleBtn=t.closest('[data-action="addSale"]');
+    if(addSaleBtn){
+      var drA=addSaleBtn.closest('tr.details-row[data-id]');
+      if(!drA) return;
+      var entA=state.entries.find(function(x){ return x.id===drA.dataset.id; });
+      if(!entA) return;
+      if(!entA.sales) entA.sales=[];
+      var newSale={id:uid(), date:todayStr(), qty:0, price:0};
+      entA.sales.push(newSale);
+      saveState();
+      var contA=drA.querySelector('[data-sales-container]');
+      if(contA) contA.innerHTML=salesBlockHTML(entA);
+      updateRowComputed(entA.id);
+      var newQtyInput=drA.querySelector('.sales-row[data-sale-id="'+newSale.id+'"] input[data-sale-field="qty"]');
+      if(newQtyInput) newQtyInput.focus();
+      return;
+    }
+    var delSaleBtn=t.closest('[data-action="deleteSale"]');
+    if(delSaleBtn){
+      var drD=delSaleBtn.closest('tr.details-row[data-id]');
+      if(!drD) return;
+      var entD=state.entries.find(function(x){ return x.id===drD.dataset.id; });
+      if(!entD) return;
+      entD.sales=(entD.sales||[]).filter(function(s){ return s.id!==delSaleBtn.dataset.saleId; });
+      saveState();
+      var contD=drD.querySelector('[data-sales-container]');
+      if(contD) contD.innerHTML=salesBlockHTML(entD);
+      updateRowComputed(entD.id);
+      return;
+    }
+  });
+
+  document.addEventListener('input', function(ev){
+    var t=ev.target;
+    if(t.id==='clientSearch'){ renderSearchResults(t.value); return; }
+
+    if(t.dataset && t.dataset.saleField){
+      var saleRow=t.closest('.sales-row');
+      var drS=t.closest('tr.details-row[data-id]');
+      if(!saleRow || !drS) return;
+      var entS=state.entries.find(function(x){ return x.id===drS.dataset.id; });
+      if(!entS || !entS.sales) return;
+      var sale=entS.sales.find(function(s){ return s.id===saleRow.dataset.saleId; });
+      if(!sale) return;
+      var sf=t.dataset.saleField;
+      sale[sf]= sf==='date' ? t.value : (t.value===''?0:parseFloat(t.value));
+      saveState();
+      var subtotalEl=saleRow.querySelector('[data-sale-calc="subtotal"]');
+      if(subtotalEl) subtotalEl.textContent=fmtInt(n(sale.qty)*n(sale.price));
+      updateRowComputed(entS.id);
+      return;
+    }
+
+    if(!t.dataset || !t.dataset.field) return;
+    var tr=t.closest('tr[data-id]');
+    if(!tr) return;
+    var id=tr.dataset.id;
+    var entry=state.entries.find(function(x){ return x.id===id; });
+    if(!entry) return;
+    var field=t.dataset.field;
+    var numericFields=['amount','startPrice','pricePerMillionUsd','usdBrlRate','taxRate'];
+    if(numericFields.indexOf(field)!==-1){
+      var numVal= t.value===''?0:parseFloat(t.value);
+      entry[field]= (field==='taxRate') ? Math.round(numVal) : numVal;
+    } else {
+      entry[field]=t.value;
+    }
+    saveState();
+    updateRowComputed(id);
+  });
+
+  document.addEventListener('change', function(ev){
+    var t=ev.target;
+    if(t.tagName==='SELECT' && t.dataset.field){
+      var tr=t.closest('tr[data-id]');
+      if(!tr) return;
+      var id=tr.dataset.id;
+      var entry=state.entries.find(function(x){ return x.id===id; });
+      if(!entry) return;
+      entry[t.dataset.field]=t.value;
+      saveState();
+      if(t.dataset.field==='status') t.className='pill-select status-'+t.value;
+      if(t.dataset.field==='payment') t.className='pill-select pay-'+t.value;
+      updateItemStatsBar();
+    }
+  });
+
+  document.addEventListener('focus', function(ev){
+    var t=ev.target;
+    if(t.matches && t.matches('input[type=number]')) t.select();
+  }, true);
+
+  document.addEventListener('keydown', function(ev){
+    if(ev.key==='Escape') closeModal();
+  });
+
+  updateHeaderTexts();
+
+  // ============================================================
+  // Inicialização: verifica se já existe uma sessão salva antes
+  // de mostrar a tela de login.
+  // ============================================================
+  function boot(){
+    if(!cloudReady || !sb){
+      showAuthScreen(t('authNotConfigured'));
+      return;
+    }
+    sb.auth.getSession().then(function(res){
+      var sess=res && res.data && res.data.session;
+      if(sess){
+        session=sess;
+        afterLogin();
+      } else {
+        showAuthScreen();
+      }
+    }).catch(function(){ showAuthScreen(t('authNoConnection')); });
+
+    sb.auth.onAuthStateChange(function(event){
+      if(event==='SIGNED_OUT'){
+        session=null; myProfile=null; allProfiles=[]; targetUserId=null;
+        state=defaultState();
+        showAuthScreen();
+      }
+    });
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
